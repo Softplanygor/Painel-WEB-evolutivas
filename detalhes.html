@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Detalhes da Evolutiva</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+
+  <!-- NAVBAR -->
+  <nav class="bg-[#2e2a45] text-white flex items-center justify-between px-6 py-4 shadow-md border-b border-indigo-800">
+     <div class="flex items-center">
+    <img src="./logo_softplan.png" alt="Logo Softplan" class="h-11 object-contain">
+  </div>
+  <!-- Botões de navegação -->
+  <div class="flex items-center space-x-6">
+     <button id="btn-home" title="Tela Principal" 
+          class="hover:opacity-80 transition-transform hover:scale-110 duration-200">
+    <img src="./icone_home.png" 
+         alt="Ícone Home" 
+         class="h-12 w-12 object-contain bg-transparent rounded-full">
+  </button>
+    <button id="btn-search" title="Tela de Busca" 
+          class="hover:opacity-80 transition-transform hover:scale-110 duration-200">
+    <img src="./icone_lupa.png" 
+         alt="Ícone Busca" 
+         class="h-8 w-8 object-contain bg-transparent rounded-full">
+  </button>
+  </div>
+  <!-- Texto lateral -->
+  <div class="text-sm uppercase font-bold tracking-wide text-gray-200">
+    Acompanhamento Evolutivas
+  </div>
+</nav>
+
+  <!-- CONTEÚDO -->
+  <main class="p-6">
+    <div class="bg-white max-w-5xl mx-auto shadow-md rounded-xl p-6">
+
+    <h1 id="tituloEvolutiva" class="text-2xl font-bold text-blue-900 text-center mb-6"></h1>
+
+    <!-- TABELA 1: Versão / Data -->
+    
+    <table class="min-w-full bg-white text-sm border mb-6">
+      <thead>
+        <tr class="bg-gray-200 text-gray-700 text-center">
+          <th class="py-2 px-4 border">Versão de Ativação</th>
+          <th class="py-2 px-4 border">Data de Ativação</th>
+        </tr>
+      </thead>
+      <tbody id="tabelaInfo" class="text-center">
+        <tr><td colspan="2" class="py-2">Carregando...</td></tr>
+      </tbody>
+    </table>
+
+    <!-- TABELA 2: SCCDs -->
+   
+    <table class="min-w-full bg-white text-sm border">
+      <thead>
+        <tr class="bg-gray-200 text-gray-700 text-center">
+        <th class="py-2 px-4 border">SCCD/JIRA</th>
+        <th class="py-2 px-4 border">Descrição</th>
+        </tr>
+      </thead>
+      <tbody id="tabelaSccd" class="text-gray-800 text-center">
+        <tr><td colspan="2">Carregando...</td></tr>
+      </tbody>
+    </table>
+
+    </div>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const evolutiva = params.get("evolutiva");
+    document.getElementById("tituloEvolutiva").textContent = "Evolutiva: " + evolutiva;
+
+    async function carregarSccd() {
+      const SPREADSHEET_ID = "1ENFkbQ1Lj7z7d8U36wgRybp0CKgWXuCbBVAxSFNfMes";
+      const API_KEY = "AIzaSyC3uqtTWIqKM4i4i4I5h3gsEdtW8aMjsYo";
+      const RANGE = "Sccd!A2:E"; // Agora pega até Data de ativação
+
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(RANGE)}?key=${API_KEY}`;
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        const tabelaInfo = document.getElementById("tabelaInfo");
+        const tabelaSccd = document.getElementById("tabelaSccd");
+
+        if (!data.values) {
+          tabelaInfo.innerHTML = "<tr><td colspan='2'>Nenhum dado encontrado.</td></tr>";
+          tabelaSccd.innerHTML = "<tr><td colspan='2'>Nenhum SCCD encontrado.</td></tr>";
+          return;
+        }
+
+        const registros = data.values.filter(row => row[0] === evolutiva);
+
+        if (registros.length === 0) {
+          tabelaInfo.innerHTML = "<tr><td colspan='2'>Sem informação de ativação.</td></tr>";
+          tabelaSccd.innerHTML = "<tr><td colspan='2'>Nenhum SCCD encontrado.</td></tr>";
+          return;
+        }
+
+        // TABELA 1 --------------------------------------
+        const primeira = registros[0];
+        tabelaInfo.innerHTML = `
+        <tr>
+        <td class="border px-4 py-2">${primeira[3] || ""}</td>
+        <td class="border px-4 py-2">${primeira[4] || ""}</td>
+        </tr>
+        `;
+
+        // TABELA 2 --------------------------------------
+        tabelaSccd.innerHTML = "";
+
+        registros.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+        <td class="border px-4 py-2">${row[1] || ""}</td>
+        <td class="border px-4 py-2 text-left">${row[2] || ""}</td>
+        `;
+        tabelaSccd.appendChild(tr);
+        });
+
+      } catch (error) {
+        console.error("Erro ao carregar SCCDs:", error);
+      }
+
+    }
+
+    carregarSccd();
+    // Botões de navegação
+  document.getElementById("btn-home").addEventListener("click", () => {
+    // Voltar para o painel principal
+    window.location.href = "./indexOK.html";
+  });
+
+  document.getElementById("btn-search").addEventListener("click", () => {
+    // Voltar para o painel principal, mas abrindo já na tela de busca
+    window.location.href = "./indexOK.html?tela=busca";
+  });
+  </script>
+</body>
+</html>

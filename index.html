@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Painel Evolutivas - SIG/MPSC</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+
+  <!-- NAVBAR -->
+  <nav class="bg-[#2e2a45] text-white flex items-center justify-between px-6 py-4 shadow-md border-b border-indigo-800">
+    <div class="flex items-center">
+      <img src="./logo_softplan.png" alt="Logo Softplan" class="h-11 object-contain">
+    </div>
+
+    <!-- Botões de navegação -->
+    <div class="flex items-center space-x-6">
+      <button id="btn-home" title="Tela Principal" 
+        class="hover:opacity-80 transition-transform hover:scale-110 duration-200">
+        <img src="./icone_home.png" alt="Ícone Home" class="h-12 w-12 object-contain bg-transparent rounded-full">
+      </button>
+      <button id="btn-search" title="Tela de Busca" 
+        class="hover:opacity-80 transition-transform hover:scale-110 duration-200">
+        <img src="./icone_lupa.png" alt="Ícone Busca" class="h-8 w-8 object-contain bg-transparent rounded-full">
+      </button>
+    </div>
+
+    <!-- Texto lateral -->
+    <div class="text-sm font-bold tracking-wide text-gray-200">
+      Acompanhamento de Evolutivas
+    </div>
+  </nav>
+
+  <!-- TELA PRINCIPAL -->
+  <main id="tela-principal" class="p-6">
+    <div class="bg-white max-w-7xl mx-auto shadow-md rounded-xl p-6">
+      <div class="mb-4">
+        <h1 class="text-2xl font-bold text-blue-900">Evolutivas SAJ5/MPSC</h1>
+        <p class="text-sm text-gray-600">
+          Listagem de evolutivas do sistema SAJ/MPSC.
+        </p>
+        <p class="text-sm text-gray-600">
+          SCCDs/Jiras - Clique sob o nome da evolutiva para obter informações de chamados de correções atrelados.
+        </p>
+      </div>
+
+      <!-- Filtro -->
+      <div class="flex space-x-4 mb-4">
+        <select id="tipoSistema" class="border border-gray-300 rounded p-1 text-sm">
+          <option value="">Ambiente / Ver todos os Ambientes</option>
+          <option value="Homologação 1">Homologação 1</option>
+          <option value="Homologação 2">Homologação 2</option>
+          <option value="Produção">Produção</option>
+        </select>
+      </div>
+
+      <!-- Tabela -->
+      <div class="overflow-x-auto">
+        <table class="min-w-full bg-white text-sm border border-gray-300 border-collapse">
+          <thead>
+            <tr class="bg-gray-200 text-gray-700 text-center">
+              <th class="py-2 px-4 border border-gray-300">Versão de liberação</th>
+              <th class="py-2 px-4 border border-gray-300">Ambiente</th>
+              <th class="py-2 px-4 border border-gray-300">Status do andamento</th>
+              <th class="py-2 px-4 border border-gray-300">Evolutiva | Clique no nome da evolutiva para acessar mais detalhes e informações</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaEvolutivas" class="text-gray-800 text-center">
+            <tr><td colspan="5" class="py-2 border border-gray-300">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- TELA DE BUSCA -->
+  <main id="tela-busca" class="hidden p-6">
+    <div class="bg-white max-w-2xl mx-auto shadow-md rounded-xl p-6">
+      <h2 class="text-xl font-bold text-blue-900 mb-4">Tela de Busca</h2>
+      <form id="form-busca" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Pesquisar Evolutiva</label>
+          <input type="text" id="input-busca" placeholder="Digite o termo de busca..." class="mt-1 block w-full border border-gray-300 rounded p-2">
+        </div>
+        <div>
+          <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Buscar</button>
+        </div>
+      </form>
+      <div id="resultado-busca" class="mt-4 text-gray-700"></div>
+    </div>
+  </main>
+
+  <script>
+    const tabela = document.getElementById("tabelaEvolutivas");
+
+    async function carregarEvolutivas() {
+      const SPREADSHEET_ID = "1ENFkbQ1Lj7z7d8U36wgRybp0CKgWXuCbBVAxSFNfMes";
+      const API_KEY = "AIzaSyC3uqtTWIqKM4i4i4I5h3gsEdtW8aMjsYo";
+      const RANGE = "Planilha evolutivas!A2:F";
+
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(RANGE)}?key=${API_KEY}`;
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (!data.values) {
+          tabela.innerHTML = "<tr><td colspan='5' class='border border-gray-300 py-2'>Nenhum dado encontrado.</td></tr>";
+          return;
+        }
+
+        const evolutivas = data.values.map(row => ({
+          versao: row[0] || "",
+          tipo: row[1] || "",
+          statusDoAndamento: row[2] || "",
+          evolutiva: row[3] || ""
+        }));
+
+        atualizarTabela(evolutivas, document.getElementById("tipoSistema").value);
+
+        const filtro = document.getElementById("tipoSistema");
+        filtro.addEventListener("change", () => {
+          atualizarTabela(evolutivas, filtro.value);
+        });
+
+        document.getElementById("form-busca").addEventListener("submit", e => {
+          e.preventDefault();
+          const termo = document.getElementById("input-busca").value.toLowerCase();
+          const resultados = evolutivas.filter(evo => evo.evolutiva.toLowerCase().includes(termo));
+          const divResultado = document.getElementById("resultado-busca");
+          if (resultados.length === 0) {
+            divResultado.innerHTML = "<p>Nenhuma evolutiva encontrada.</p>";
+          } else {
+            divResultado.innerHTML = `
+              <ul class="list-disc pl-4">
+                ${resultados.map(evo => `
+                  <li>
+                    <a href="./detalhes.html?evolutiva=${encodeURIComponent(evo.evolutiva)}" 
+                       class="text-blue-600 hover:underline">
+                       ${evo.evolutiva}
+                    </a> (${evo.tipo})
+                  </li>
+                `).join("")}
+              </ul>
+            `;
+          }
+        });
+
+      } catch (error) {
+        console.error("Erro ao carregar evolutivas:", error);
+        tabela.innerHTML = "<tr><td colspan='5' class='border border-gray-300 py-2'>Erro ao carregar dados.</td></tr>";
+      }
+    }
+
+    function atualizarTabela(evolutivas, tipo) {
+      tabela.innerHTML = "";
+      evolutivas.forEach(evo => {
+        if (!tipo || evo.tipo === tipo) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="border border-gray-300 px-4 py-2 text-center">${evo.versao}</td>
+            <td class="border border-gray-300 px-4 py-2 text-center">${evo.tipo}</td>
+            <td class="border border-gray-300 px-4 py-2 text-center">${evo.statusDoAndamento}</td>
+            <td class="border border-gray-300 px-4 py-2 text-blue-600 hover:underline text-center">
+              <a href="./detalhes.html?evolutiva=${encodeURIComponent(evo.evolutiva)}" target="_blank">
+                ${evo.evolutiva}
+              </a>
+            </td>
+          `;
+          tabela.appendChild(tr);
+        }
+      });
+    }
+
+    const telaPrincipal = document.getElementById("tela-principal");
+    const telaBusca = document.getElementById("tela-busca");
+    document.getElementById("btn-home").addEventListener("click", () => {
+      telaPrincipal.classList.remove("hidden");
+      telaBusca.classList.add("hidden");
+    });
+    document.getElementById("btn-search").addEventListener("click", () => {
+      telaPrincipal.classList.add("hidden");
+      telaBusca.classList.remove("hidden");
+    });
+
+    carregarEvolutivas();
+    setInterval(carregarEvolutivas, 30000);
+
+    const params = new URLSearchParams(window.location.search);
+    const tela = params.get("tela");
+    if (tela === "busca") {
+      telaPrincipal.classList.add("hidden");
+      telaBusca.classList.remove("hidden");
+    } else {
+      telaPrincipal.classList.remove("hidden");
+      telaBusca.classList.add("hidden");
+    }
+  </script>
+</body>
+</html>
